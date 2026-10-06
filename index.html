@@ -13,7 +13,6 @@
   <style>
     :root{
       --bg:#0b1020;
-      --bg2:#0f1724;
       --card:#111b2b;
       --accent:#7dd3fc;
       --text:#eaf2fb;
@@ -39,7 +38,11 @@
       padding:var(--pad);
       display:flex;flex-direction:column;gap:var(--gap);
       color:var(--text);
-      background:linear-gradient(180deg,var(--bg),var(--bg2));
+      background-color:var(--bg);
+      background-image:none;
+      background-size:cover;
+      background-position:center;
+      background-repeat:no-repeat;
       overflow:hidden;
     }
 
@@ -139,6 +142,7 @@
 
     footer{flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;gap:10px;color:var(--muted);font-size:12px}
     .saveState{font-variant-numeric:tabular-nums}
+    .footerActions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}
 
     /* Focus mode */
     .focusScreen{display:none;flex:1;min-height:0}
@@ -146,7 +150,7 @@
     .app.focus .focusScreen{display:flex}
     .focusCard{
       width:100%;height:100%;min-height:0;border-radius:20px;border:1px solid rgba(255,255,255,.08);
-      background:linear-gradient(180deg,color-mix(in srgb,var(--accent) 12%,var(--bg)),var(--bg2));
+      background:color-mix(in srgb,var(--accent) 10%,var(--bg));
       display:flex;flex-direction:column;justify-content:center;align-items:stretch;gap:14px;padding:clamp(16px,4vw,34px);overflow:hidden
     }
     .focusMeta{font-size:12px;color:var(--muted)}
@@ -179,6 +183,9 @@
     .colorRow input[type="color"]{width:46px;height:44px;padding:0;border:none;background:transparent}
     .colorRow input[type="text"]{min-height:44px;padding:9px 11px;border-radius:11px;border:1px solid rgba(255,255,255,.13);background:#152033;color:var(--text)}
     .settingHint{font-size:12px;color:var(--muted);line-height:1.4}
+    .fileRow{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+    .fileRow input[type="file"]{max-width:100%;color:var(--muted);font-size:13px}
+    .dangerZone{margin-top:4px;padding-top:12px;border-top:1px solid rgba(255,255,255,.08);display:flex;flex-direction:column;gap:8px}
 
     @media (max-width:420px){
       :root{--pad:10px;--gap:9px}
@@ -188,8 +195,9 @@
       .composer{padding:10px}
       .memoActions{width:100%}
       .memoActions button{flex:1 1 auto}
-      footer{display:block}
-      .saveState{margin-top:4px}
+      footer{display:flex;align-items:flex-start}
+      .footerActions{justify-content:flex-end}
+      .saveState{margin-top:0}
     }
   </style>
 </head>
@@ -257,7 +265,10 @@
 
   <footer>
     <div><span id="taskCount">0</span>件 / 今日の完了 <span id="doneCount">0</span>件</div>
-    <div class="saveState" id="saveState">保存: --</div>
+    <div class="footerActions">
+      <div class="saveState" id="saveState">保存: --</div>
+      <button class="danger" id="deleteAllTasks">タスク全削除</button>
+    </div>
   </footer>
 
   <section class="focusScreen">
@@ -301,16 +312,29 @@
         <input id="accentHex" type="text" inputmode="text" placeholder="#7dd3fc">
         <button id="applyAccent">適用</button>
       </div>
-      <div class="settingHint">背景色</div>
+      <div class="settingHint">背景色（単色）</div>
       <div class="colorRow">
         <input id="bgColor" type="color">
         <input id="bgHex" type="text" inputmode="text" placeholder="#0b1020">
         <button id="applyBg">適用</button>
       </div>
+
+      <div class="settingHint">背景画像</div>
+      <div class="fileRow">
+        <input id="bgImageInput" type="file" accept="image/*">
+        <button id="removeBgImage">背景画像を削除</button>
+      </div>
+      <div class="settingHint">画像はこの端末内に保存されます。背景画像を設定している間は、背景色より画像が優先されます。</div>
+
       <div class="modalActions">
         <button id="resetAppearance">見た目を初期化</button>
       </div>
-      <div class="settingHint">※ タスクデータは消しません。キャッシュクリアは、原因切り分け前にデータを消す危険があるため今回は入れていません。</div>
+
+      <div class="dangerZone">
+        <div class="settingHint">データ管理</div>
+        <button class="danger" id="resetAllData">データ初期化</button>
+        <div class="settingHint">「タスク全削除」はタスク・メモ・作業履歴だけ削除し、見た目設定は残します。「データ初期化」はタスク、下書き、表示設定、色、背景画像を含む Edge Task のデータをすべて初期状態に戻します。</div>
+      </div>
     </div>
   </div>
 </dialog>
@@ -335,6 +359,11 @@
     bg: 'edge_bg'
   };
 
+  const BG_DB_NAME = 'edge_task_assets';
+  const BG_STORE_NAME = 'assets';
+  const BG_IMAGE_KEY = 'background_image';
+  let currentBgObjectUrl = null;
+
   function safeJson(key, fallback){
     try {
       const raw = localStorage.getItem(key);
@@ -343,6 +372,70 @@
       console.warn('Storage parse failed:', key, e);
       return fallback;
     }
+  }
+
+  function openBgDb(){
+    return new Promise((resolve,reject) => {
+      const req = indexedDB.open(BG_DB_NAME,1);
+      req.onupgradeneeded = () => {
+        const db = req.result;
+        if(!db.objectStoreNames.contains(BG_STORE_NAME)) db.createObjectStore(BG_STORE_NAME);
+      };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  async function saveBgImageBlob(blob){
+    const db = await openBgDb();
+    await new Promise((resolve,reject) => {
+      const tx = db.transaction(BG_STORE_NAME,'readwrite');
+      tx.objectStore(BG_STORE_NAME).put(blob,BG_IMAGE_KEY);
+      tx.oncomplete = resolve;
+      tx.onerror = () => reject(tx.error);
+    });
+    db.close();
+  }
+
+  async function loadBgImageBlob(){
+    const db = await openBgDb();
+    const blob = await new Promise((resolve,reject) => {
+      const tx = db.transaction(BG_STORE_NAME,'readonly');
+      const req = tx.objectStore(BG_STORE_NAME).get(BG_IMAGE_KEY);
+      req.onsuccess = () => resolve(req.result || null);
+      req.onerror = () => reject(req.error);
+    });
+    db.close();
+    return blob;
+  }
+
+  async function deleteBgImageBlob(){
+    const db = await openBgDb();
+    await new Promise((resolve,reject) => {
+      const tx = db.transaction(BG_STORE_NAME,'readwrite');
+      tx.objectStore(BG_STORE_NAME).delete(BG_IMAGE_KEY);
+      tx.oncomplete = resolve;
+      tx.onerror = () => reject(tx.error);
+    });
+    db.close();
+  }
+
+  function applyBgImageBlob(blob){
+    if(currentBgObjectUrl){
+      URL.revokeObjectURL(currentBgObjectUrl);
+      currentBgObjectUrl = null;
+    }
+    if(blob){
+      currentBgObjectUrl = URL.createObjectURL(blob);
+      app.style.backgroundImage = `url("${currentBgObjectUrl}")`;
+    } else {
+      app.style.backgroundImage = 'none';
+    }
+  }
+
+  async function restoreBgImage(){
+    try { applyBgImageBlob(await loadBgImageBlob()); }
+    catch(e){ console.warn('Background image restore failed:', e); }
   }
 
   function pad2(n){ return String(n).padStart(2,'0'); }
@@ -648,7 +741,37 @@
     $('bgColor').value = h;
     $('bgHex').value = h;
     localStorage.setItem(STORAGE.bg,h);
+    const themeMeta = document.querySelector('meta[name="theme-color"]');
+    if(themeMeta) themeMeta.setAttribute('content',h);
     return true;
+  }
+
+  function deleteAllTasks(){
+    if(!tasks.length){
+      alert('削除するタスクがありません');
+      return;
+    }
+    if(!confirm('すべてのタスク・メモ・作業履歴を削除しますか？\n\n文字サイズや色、背景画像などの見た目設定は残ります。')) return;
+    tasks.forEach(t => stopTask(t));
+    tasks = [];
+    memoDrafts = {};
+    selectedId = null;
+    memoInput.value = '';
+    focusMemoInput.value = '';
+    localStorage.setItem(STORAGE.tasks,'[]');
+    localStorage.setItem(STORAGE.selected,'');
+    localStorage.setItem(STORAGE.memoDrafts,'{}');
+    localStorage.removeItem(STORAGE.lastSaved);
+    updateSaveState();
+    render();
+  }
+
+  async function resetAllData(){
+    if(!confirm('Edge Task のデータを初期化しますか？\n\nタスク、メモ、作業履歴、入力中の下書き、表示設定、色、背景画像がすべて削除されます。\nこの操作は元に戻せません。')) return;
+    Object.values(STORAGE).forEach(key => localStorage.removeItem(key));
+    try { await deleteBgImageBlob(); }
+    catch(e){ console.warn('Background image delete failed:', e); }
+    location.reload();
   }
 
   function buildSummary(){
@@ -700,6 +823,7 @@
   applyFont(localStorage.getItem(STORAGE.font) || 28);
   applyAccent(localStorage.getItem(STORAGE.accent) || '#7dd3fc');
   applyBg(localStorage.getItem(STORAGE.bg) || '#0b1020');
+  restoreBgImage();
   updateSaveState();
 
   // Clock
@@ -719,6 +843,7 @@
   hideDone.onchange = () => { localStorage.setItem(STORAGE.hideDone,hideDone.checked?'1':'0'); render(); };
   orderSelect.onchange = () => { localStorage.setItem(STORAGE.order,orderSelect.value); render(); };
   fontRange.oninput = () => applyFont(fontRange.value);
+  $('deleteAllTasks').onclick = deleteAllTasks;
 
   $('focusBtn').onclick = () => setFocus(true);
   $('focusBackBtn').onclick = () => setFocus(false);
@@ -751,10 +876,40 @@
   $('bgColor').oninput = () => $('bgHex').value = $('bgColor').value;
   $('applyAccent').onclick = () => { if(!applyAccent($('accentHex').value)) alert('例: #7dd3fc の形式で入力してください'); };
   $('applyBg').onclick = () => { if(!applyBg($('bgHex').value)) alert('例: #0b1020 の形式で入力してください'); };
-  $('resetAppearance').onclick = () => {
+  $('bgImageInput').onchange = async () => {
+    const file = $('bgImageInput').files && $('bgImageInput').files[0];
+    if(!file) return;
+    if(!file.type.startsWith('image/')){
+      alert('画像ファイルを選んでください');
+      $('bgImageInput').value = '';
+      return;
+    }
+    try {
+      await saveBgImageBlob(file);
+      applyBgImageBlob(file);
+      $('bgImageInput').value = '';
+    } catch(e){
+      console.error(e);
+      alert('背景画像を保存できませんでした。別の画像でお試しください。');
+    }
+  };
+  $('removeBgImage').onclick = async () => {
+    try {
+      await deleteBgImageBlob();
+      applyBgImageBlob(null);
+      $('bgImageInput').value = '';
+    } catch(e){
+      console.error(e);
+      alert('背景画像を削除できませんでした');
+    }
+  };
+  $('resetAppearance').onclick = async () => {
     localStorage.removeItem(STORAGE.accent); localStorage.removeItem(STORAGE.bg); localStorage.removeItem(STORAGE.font);
     applyAccent('#7dd3fc'); applyBg('#0b1020'); applyFont(28);
+    try { await deleteBgImageBlob(); } catch(e) { console.warn(e); }
+    applyBgImageBlob(null);
   };
+  $('resetAllData').onclick = resetAllData;
 
   // Ctrl/Cmd + Enter task add. If task field is empty, focus it instead.
   document.addEventListener('keydown',(e) => {
