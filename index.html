@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <title>Edge Task</title>
+  <title>Edge Task v2.3</title>
   <link rel="manifest" href="./manifest.json">
   <meta name="theme-color" content="#0b1020">
   <link rel="apple-touch-icon" href="./apple-touch-icon.png">
@@ -20,6 +20,7 @@
       --danger:#fda4af;
       --surface:rgba(255,255,255,.055);
       --surface-strong:rgba(255,255,255,.085);
+      --image-overlay:transparent;
 
       --title-size:28px;
       --item-title-size:24px;
@@ -46,7 +47,14 @@
       background-position:center;
       background-repeat:no-repeat;
       overflow:hidden;
+      position:relative;
+      isolation:isolate;
     }
+    .app::before{
+      content:"";position:absolute;inset:0;pointer-events:none;z-index:0;background:transparent;
+    }
+    .app.has-bg-image::before{background:var(--image-overlay)}
+    .app > *{position:relative;z-index:1}
 
     header{display:flex;align-items:center;justify-content:space-between;gap:10px;flex:0 0 auto}
     header h1{margin:0;font-size:17px;letter-spacing:.02em}
@@ -109,7 +117,10 @@
     .taskMain{flex:1;min-width:0}
     .selectedBadge{display:none;width:max-content;margin-bottom:5px;padding:3px 7px;border-radius:999px;background:var(--accent);color:#082033;font-size:10px;font-weight:900}
     .task.selected .selectedBadge{display:block}
-    .taskTitle{font-size:var(--item-title-size);font-weight:900;line-height:1.12;overflow-wrap:anywhere;cursor:text}
+    .taskTitleRow{display:flex;align-items:flex-start;gap:7px;min-width:0}
+    .taskTitle{flex:1;min-width:0;font-size:var(--item-title-size);font-weight:900;line-height:1.12;overflow-wrap:anywhere}
+    .editTitleBtn{flex:0 0 auto;width:36px;min-height:36px;height:36px;padding:0;border-radius:10px;font-size:16px;display:grid;place-items:center;opacity:.8}
+    .editTitleBtn:hover,.editTitleBtn:focus-visible{opacity:1;border-color:color-mix(in srgb,var(--accent) 55%,transparent)}
     .titleEdit{width:100%;min-width:0;padding:6px 8px;border-radius:9px;border:1px solid var(--accent);background:var(--surface-strong);color:var(--text);font:inherit;font-weight:900;outline:none;box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 15%,transparent)}
     .taskNote{margin-top:6px;font-size:var(--item-sub-size);line-height:1.35;color:var(--muted);white-space:pre-wrap;overflow-wrap:anywhere}
     .taskActions{display:flex;flex-direction:column;gap:7px;flex:0 0 auto}
@@ -340,7 +351,18 @@
         <input id="bgImageInput" type="file" accept="image/*">
         <button id="removeBgImage">背景画像を削除</button>
       </div>
-      <div class="settingHint">画像はこの端末内に保存されます。背景画像を設定している間は、背景色より画像が優先されます。背景自体に暗いレイヤーは重ねず、タスクや入力欄だけを背景より少し明るい半透明レイヤーで分けます。</div>
+      <div class="settingHint">画像はこの端末内に保存されます。背景画像を設定している間は、背景色より画像が優先されます。</div>
+
+      <div id="bgImageAdjust" hidden>
+        <div class="settingHint">背景画像レイヤー（画像を登録している時だけ有効）</div>
+        <div class="rangeWrap">
+          <span>暗</span>
+          <input id="bgOverlayRange" type="range" min="-100" max="100" step="1" value="0">
+          <span class="fontValue" id="bgOverlayValue">なし</span>
+          <span>明</span>
+        </div>
+        <div class="settingHint">0でレイヤーなし。左へ動かすと黒、右へ動かすと白のレイヤーを重ねて、背景画像だけの明暗を調整します。</div>
+      </div>
 
       <div class="modalActions">
         <button id="resetAppearance">見た目を初期化</button>
@@ -374,7 +396,8 @@
     accent: 'edge_accent',
     bg: 'edge_bg',
     textBase: 'edge_text_base',
-    textLight: 'edge_text_light'
+    textLight: 'edge_text_light',
+    bgOverlay: 'edge_bg_overlay'
   };
 
   const BG_DB_NAME = 'edge_task_assets';
@@ -438,6 +461,23 @@
     db.close();
   }
 
+  function applyBgOverlay(value){
+    const n=Math.max(-100,Math.min(100,Number(value)||0));
+    const strength=Math.abs(n)/100*0.78;
+    const overlay=n<0 ? `rgba(0,0,0,${strength.toFixed(3)})` : n>0 ? `rgba(255,255,255,${strength.toFixed(3)})` : 'transparent';
+    document.documentElement.style.setProperty('--image-overlay',overlay);
+    localStorage.setItem(STORAGE.bgOverlay,String(Math.round(n)));
+    const range=$('bgOverlayRange');
+    const label=$('bgOverlayValue');
+    if(range) range.value=String(Math.round(n));
+    if(label) label.textContent=n===0 ? 'なし' : `${n<0?'暗':'明'} ${Math.abs(Math.round(n))}%`;
+  }
+
+  function setBgImageAdjustVisible(visible){
+    const box=$('bgImageAdjust');
+    if(box) box.hidden=!visible;
+  }
+
   function applyBgImageBlob(blob){
     if(currentBgObjectUrl){
       URL.revokeObjectURL(currentBgObjectUrl);
@@ -446,8 +486,14 @@
     if(blob){
       currentBgObjectUrl = URL.createObjectURL(blob);
       app.style.backgroundImage = `url("${currentBgObjectUrl}")`;
+      app.classList.add('has-bg-image');
+      setBgImageAdjustVisible(true);
+      applyBgOverlay(localStorage.getItem(STORAGE.bgOverlay) || '0');
     } else {
       app.style.backgroundImage = 'none';
+      app.classList.remove('has-bg-image');
+      setBgImageAdjustVisible(false);
+      document.documentElement.style.setProperty('--image-overlay','transparent');
     }
   }
 
@@ -688,28 +734,23 @@
       const badge = document.createElement('div');
       badge.className = 'selectedBadge';
       badge.textContent = '選択中';
+      const titleRow = document.createElement('div');
+      titleRow.className = 'taskTitleRow';
       const title = document.createElement('div');
       title.className = 'taskTitle';
       title.textContent = task.title;
-      title.title = 'ダブルクリック / ダブルタップで名称変更';
-      title.ondblclick = (ev) => { ev.preventDefault(); ev.stopPropagation(); startRenameTask(task,title); };
-      let lastTouchTap = 0;
-      title.addEventListener('pointerup',(ev) => {
-        if(ev.pointerType !== 'touch') return;
-        const now = Date.now();
-        if(now-lastTouchTap < 380){
-          ev.preventDefault();
-          ev.stopPropagation();
-          lastTouchTap = 0;
-          startRenameTask(task,title);
-        } else {
-          lastTouchTap = now;
-        }
-      });
+      const editTitle = document.createElement('button');
+      editTitle.className = 'editTitleBtn';
+      editTitle.type = 'button';
+      editTitle.textContent = '✏️';
+      editTitle.title = 'タスク名を編集';
+      editTitle.setAttribute('aria-label',`${task.title} の名前を編集`);
+      editTitle.onclick = (ev) => { ev.preventDefault(); ev.stopPropagation(); startRenameTask(task,title); };
+      titleRow.append(title,editTitle);
       const note = document.createElement('div');
       note.className = 'taskNote';
       note.textContent = task.note || '';
-      main.append(badge,title,note);
+      main.append(badge,titleRow,note);
 
       const actions = document.createElement('div');
       actions.className = 'taskActions';
@@ -1014,6 +1055,7 @@
   $('applyBg').onclick = () => { if(!applyBg($('bgHex').value)) alert('例: #0b1020 の形式で入力してください'); };
   $('applyText').onclick = () => { if(!applyTextDirect($('textHex').value)) alert('例: #eaf2fb の形式で入力してください'); };
   $('textLightRange').oninput = () => applyTextLight($('textLightRange').value);
+  $('bgOverlayRange').oninput = () => applyBgOverlay($('bgOverlayRange').value);
   $('bgImageInput').onchange = async () => {
     const file = $('bgImageInput').files && $('bgImageInput').files[0];
     if(!file) return;
@@ -1043,8 +1085,8 @@
   };
   $('resetAppearance').onclick = async () => {
     localStorage.removeItem(STORAGE.accent); localStorage.removeItem(STORAGE.bg); localStorage.removeItem(STORAGE.font);
-    localStorage.removeItem(STORAGE.textBase); localStorage.removeItem(STORAGE.textLight);
-    applyAccent('#7dd3fc'); applyBg('#0b1020'); applyTextFromBase('#eaf2fb',95); applyFont(28);
+    localStorage.removeItem(STORAGE.textBase); localStorage.removeItem(STORAGE.textLight); localStorage.removeItem(STORAGE.bgOverlay);
+    applyAccent('#7dd3fc'); applyBg('#0b1020'); applyTextFromBase('#eaf2fb',95); applyFont(28); applyBgOverlay(0);
     try { await deleteBgImageBlob(); } catch(e) { console.warn(e); }
     applyBgImageBlob(null);
   };
@@ -1068,6 +1110,7 @@
   document.addEventListener('visibilitychange',() => { if(document.hidden) persistDrafts(); });
   window.addEventListener('pagehide',persistDrafts);
 
+  applyBgOverlay(localStorage.getItem(STORAGE.bgOverlay) || '0');
   render();
   if(localStorage.getItem(STORAGE.focus) === '1') setFocus(true);
 })();
