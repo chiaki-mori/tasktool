@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <title>Edge Task v2.3</title>
+  <title>Edge Task v2.4</title>
   <link rel="manifest" href="./manifest.json">
   <meta name="theme-color" content="#0b1020">
   <link rel="apple-touch-icon" href="./apple-touch-icon.png">
@@ -18,8 +18,8 @@
       --text:#eaf2fb;
       --muted:#9aa4b2;
       --danger:#fda4af;
-      --surface:rgba(255,255,255,.055);
-      --surface-strong:rgba(255,255,255,.085);
+      --surface:rgba(255,255,255,.155);
+      --surface-strong:rgba(255,255,255,.185);
       --image-overlay:transparent;
 
       --title-size:28px;
@@ -99,11 +99,11 @@
     }
     .task.selected{
       border-color:var(--accent);
-      background:color-mix(in srgb,var(--accent) 9%,rgba(255,255,255,.055));
+      background:color-mix(in srgb,var(--accent) 9%,var(--surface));
       box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 12%,transparent)
     }
     .task.running{
-      background:color-mix(in srgb,var(--accent) 16%,rgba(255,255,255,.055));
+      background:color-mix(in srgb,var(--accent) 16%,var(--surface));
       border-color:color-mix(in srgb,var(--accent) 70%,transparent)
     }
     .task.running .taskTitle{color:var(--accent)}
@@ -185,11 +185,11 @@
       .focusMemo{grid-column:2;grid-row:2;align-self:start;max-height:45vh;min-height:74px}
     }
 
-    dialog{border:none;padding:0;width:min(92vw,620px);border-radius:18px;background:transparent;color:var(--text)}
+    dialog{border:none;padding:0;width:min(92vw,620px);max-height:92vh;border-radius:18px;background:transparent;color:var(--text)}
     dialog::backdrop{background:rgba(0,0,0,.58)}
-    .modal{border-radius:18px;border:1px solid rgba(255,255,255,.1);background:color-mix(in srgb,var(--bg) 92%,white 8%);overflow:hidden}
+    .modal{border-radius:18px;border:1px solid rgba(255,255,255,.1);background:color-mix(in srgb,var(--bg) 92%,white 8%);overflow:hidden;max-height:92vh;display:flex;flex-direction:column}
     .modalHead{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:13px 14px;border-bottom:1px solid rgba(255,255,255,.07);font-weight:900}
-    .modalBody{padding:14px;display:flex;flex-direction:column;gap:12px}
+    .modalBody{padding:14px;display:flex;flex-direction:column;gap:12px;overflow:auto;-webkit-overflow-scrolling:touch}
     .modal textarea{width:100%;min-height:260px;resize:vertical;padding:12px;border-radius:12px;background:var(--surface);color:var(--text);border:1px solid rgba(255,255,255,.1);line-height:1.5}
     .modalActions{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
 
@@ -200,6 +200,28 @@
     .fileRow{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
     .fileRow input[type="file"]{max-width:100%;color:var(--muted);font-size:13px}
     .dangerZone{margin-top:4px;padding-top:12px;border-top:1px solid rgba(255,255,255,.08);display:flex;flex-direction:column;gap:8px}
+
+    .settingsTabs{display:flex;gap:8px;padding:10px 14px 0}
+    .settingsTab{flex:1 1 0;min-height:42px}
+    .settingsTab.active{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 14%,var(--surface))}
+    .settingsPanel{display:none}
+    .settingsPanel.active{display:flex;flex-direction:column;gap:12px}
+    .formField{width:100%;min-height:44px;padding:10px 11px;border-radius:11px;border:1px solid rgba(255,255,255,.14);background:var(--surface);color:var(--text);outline:none}
+    textarea.formField{resize:vertical;min-height:72px;line-height:1.4}
+    .formField:focus{border-color:var(--accent);box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 12%,transparent)}
+    .repeatGrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .weekdayRow{display:flex;gap:6px;flex-wrap:wrap}
+    .weekdayChip{display:flex;align-items:center;gap:4px;min-height:38px;padding:6px 8px;border-radius:10px;background:var(--surface);border:1px solid rgba(255,255,255,.1);font-size:12px}
+    .weekdayChip input{width:18px;height:18px}
+    .recurringList{display:flex;flex-direction:column;gap:8px}
+    .recurringCard{padding:11px;border-radius:13px;background:var(--surface);border:1px solid rgba(255,255,255,.1);display:flex;gap:10px;align-items:flex-start}
+    .recurringCardMain{flex:1;min-width:0}
+    .recurringCardTitle{font-weight:900;overflow-wrap:anywhere}
+    .recurringCardMeta{margin-top:4px;color:var(--muted);font-size:12px;line-height:1.45;white-space:pre-wrap;overflow-wrap:anywhere}
+    .recurringCardActions{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+    .recurringEnabled{display:flex;align-items:center;gap:5px;color:var(--muted);font-size:12px}
+    .recurringEnabled input{width:20px;height:20px}
+    .sectionDivider{height:1px;background:rgba(255,255,255,.08);margin:2px 0}
 
     @media (max-width:420px){
       :root{--pad:10px;--gap:9px}
@@ -212,6 +234,7 @@
       footer{display:flex;align-items:flex-start}
       .footerActions{justify-content:flex-end}
       .saveState{margin-top:0}
+      .repeatGrid{grid-template-columns:1fr}
     }
   </style>
 </head>
@@ -251,6 +274,9 @@
     <div class="row">
       <input class="field" id="quickAdd" autocomplete="off" placeholder="新しいタスク（Ctrl + Enter でも追加）">
       <button class="primary" id="addBtn">追加</button>
+    </div>
+    <div class="row">
+      <textarea class="field" id="quickMemo" rows="1" placeholder="新規タスクのメモ（任意・タスク追加時に一緒に保存）"></textarea>
     </div>
 
     <div class="row">
@@ -318,60 +344,105 @@
 
 <dialog id="settingsDialog">
   <div class="modal">
-    <div class="modalHead"><span>見た目の設定</span><button id="closeSettings">閉じる</button></div>
+    <div class="modalHead"><span>設定</span><button id="closeSettings">閉じる</button></div>
+    <div class="settingsTabs">
+      <button class="settingsTab active" type="button" data-settings-tab="appearance">見た目</button>
+      <button class="settingsTab" type="button" data-settings-tab="recurring">定期タスク</button>
+    </div>
     <div class="modalBody">
-      <div class="settingHint">アクセント色</div>
-      <div class="colorRow">
-        <input id="accentColor" type="color">
-        <input id="accentHex" type="text" inputmode="text" placeholder="#7dd3fc">
-        <button id="applyAccent">適用</button>
-      </div>
-      <div class="settingHint">背景色（単色）</div>
-      <div class="colorRow">
-        <input id="bgColor" type="color">
-        <input id="bgHex" type="text" inputmode="text" placeholder="#0b1020">
-        <button id="applyBg">適用</button>
-      </div>
+      <div class="settingsPanel active" id="settingsAppearancePanel">
+        <div class="settingHint">アクセント色</div>
+        <div class="colorRow">
+          <input id="accentColor" type="color">
+          <input id="accentHex" type="text" inputmode="text" placeholder="#7dd3fc">
+          <button id="applyAccent">適用</button>
+        </div>
+        <div class="settingHint">背景色（単色）</div>
+        <div class="colorRow">
+          <input id="bgColor" type="color">
+          <input id="bgHex" type="text" inputmode="text" placeholder="#0b1020">
+          <button id="applyBg">適用</button>
+        </div>
 
-      <div class="settingHint">文字色（色味は直接指定、明暗は下のスライダーで調整できます）</div>
-      <div class="colorRow">
-        <input id="textColor" type="color">
-        <input id="textHex" type="text" inputmode="text" placeholder="#eaf2fb">
-        <button id="applyText">適用</button>
-      </div>
-      <div class="rangeWrap">
-        <span>暗</span>
-        <input id="textLightRange" type="range" min="5" max="100" step="1">
-        <span class="fontValue" id="textLightValue">95%</span>
-        <span>明</span>
-      </div>
-
-      <div class="settingHint">背景画像</div>
-      <div class="fileRow">
-        <input id="bgImageInput" type="file" accept="image/*">
-        <button id="removeBgImage">背景画像を削除</button>
-      </div>
-      <div class="settingHint">画像はこの端末内に保存されます。背景画像を設定している間は、背景色より画像が優先されます。</div>
-
-      <div id="bgImageAdjust" hidden>
-        <div class="settingHint">背景画像レイヤー（画像を登録している時だけ有効）</div>
+        <div class="settingHint">文字色（色味は直接指定、明暗は下のスライダーで調整できます）</div>
+        <div class="colorRow">
+          <input id="textColor" type="color">
+          <input id="textHex" type="text" inputmode="text" placeholder="#eaf2fb">
+          <button id="applyText">適用</button>
+        </div>
         <div class="rangeWrap">
           <span>暗</span>
-          <input id="bgOverlayRange" type="range" min="-100" max="100" step="1" value="0">
-          <span class="fontValue" id="bgOverlayValue">なし</span>
+          <input id="textLightRange" type="range" min="5" max="100" step="1">
+          <span class="fontValue" id="textLightValue">95%</span>
           <span>明</span>
         </div>
-        <div class="settingHint">0でレイヤーなし。左へ動かすと黒、右へ動かすと白のレイヤーを重ねて、背景画像だけの明暗を調整します。</div>
+
+        <div class="settingHint">背景画像</div>
+        <div class="fileRow">
+          <input id="bgImageInput" type="file" accept="image/*">
+          <button id="removeBgImage">背景画像を削除</button>
+        </div>
+        <div class="settingHint">画像はこの端末内に保存されます。背景画像を設定している間は、背景色より画像が優先されます。</div>
+
+        <div id="bgImageAdjust" hidden>
+          <div class="settingHint">背景画像レイヤー（画像を登録している時だけ有効）</div>
+          <div class="rangeWrap">
+            <span>暗</span>
+            <input id="bgOverlayRange" type="range" min="-100" max="100" step="1" value="0">
+            <span class="fontValue" id="bgOverlayValue">なし</span>
+            <span>明</span>
+          </div>
+          <div class="settingHint">0でレイヤーなし。左へ動かすと黒、右へ動かすと白のレイヤーを重ねて、背景画像だけの明暗を調整します。</div>
+        </div>
+
+        <div class="modalActions">
+          <button id="resetAppearance">見た目を初期化</button>
+        </div>
+
+        <div class="dangerZone">
+          <div class="settingHint">データ管理</div>
+          <button class="danger" id="resetAllData">データ初期化</button>
+          <div class="settingHint">「タスク全削除」は現在のタスク・メモ・作業履歴だけを削除し、定期タスク設定や見た目設定は残します。「データ初期化」は定期タスク設定、下書き、表示設定、色、背景画像を含む Edge Task のデータをすべて初期状態に戻します。</div>
+        </div>
       </div>
 
-      <div class="modalActions">
-        <button id="resetAppearance">見た目を初期化</button>
-      </div>
+      <div class="settingsPanel" id="settingsRecurringPanel">
+        <div class="settingHint">指定した曜日・時刻以降にアプリを開くと、その日の定期タスクを1回だけ自動追加します。アプリを開いたまま時刻をまたいだ場合も自動追加します。</div>
+        <input class="formField" id="recurringTitle" autocomplete="off" placeholder="タスク名">
+        <textarea class="formField" id="recurringMemo" placeholder="メモ（任意）"></textarea>
+        <div class="repeatGrid">
+          <label>
+            <div class="settingHint">何時以降に追加</div>
+            <input class="formField" id="recurringTime" type="time" value="10:00">
+          </label>
+          <label>
+            <div class="settingHint">繰り返し</div>
+            <select class="formField" id="recurringRepeat">
+              <option value="daily">毎日</option>
+              <option value="weekly">曜日指定（毎週）</option>
+            </select>
+          </label>
+        </div>
+        <div id="recurringWeekdays" hidden>
+          <div class="settingHint">追加する曜日</div>
+          <div class="weekdayRow">
+            <label class="weekdayChip"><input type="checkbox" name="recurringDay" value="1">月</label>
+            <label class="weekdayChip"><input type="checkbox" name="recurringDay" value="2">火</label>
+            <label class="weekdayChip"><input type="checkbox" name="recurringDay" value="3">水</label>
+            <label class="weekdayChip"><input type="checkbox" name="recurringDay" value="4">木</label>
+            <label class="weekdayChip"><input type="checkbox" name="recurringDay" value="5">金</label>
+            <label class="weekdayChip"><input type="checkbox" name="recurringDay" value="6">土</label>
+            <label class="weekdayChip"><input type="checkbox" name="recurringDay" value="0">日</label>
+          </div>
+        </div>
+        <div class="modalActions">
+          <button id="cancelRecurringEdit" hidden>編集をキャンセル</button>
+          <button class="primary" id="saveRecurringRule">定期タスクを登録</button>
+        </div>
 
-      <div class="dangerZone">
-        <div class="settingHint">データ管理</div>
-        <button class="danger" id="resetAllData">データ初期化</button>
-        <div class="settingHint">「タスク全削除」はタスク・メモ・作業履歴だけ削除し、見た目設定は残します。「データ初期化」はタスク、下書き、表示設定、文字色、色、背景画像を含む Edge Task のデータをすべて初期状態に戻します。</div>
+        <div class="sectionDivider"></div>
+        <div class="settingHint">登録済みの定期タスク</div>
+        <div class="recurringList" id="recurringList"></div>
       </div>
     </div>
   </div>
@@ -391,7 +462,9 @@
     hideDone: 'edge_hide_done',
     focus: 'edge_focus',
     quickDraft: 'edge_quick_draft',
+    quickMemoDraft: 'edge_quick_memo_draft',
     memoDrafts: 'edge_memo_drafts',
+    recurring: 'edge_recurring_rules',
     lastSaved: 'edge_last_saved',
     accent: 'edge_accent',
     bg: 'edge_bg',
@@ -521,9 +594,12 @@
   let tasks = safeJson(STORAGE.tasks, []);
   let memoDrafts = safeJson(STORAGE.memoDrafts, {});
   let selectedId = localStorage.getItem(STORAGE.selected) || null;
+  let recurringRules = safeJson(STORAGE.recurring, []);
+  let editingRecurringId = null;
 
   const app = $('app');
   const quickAdd = $('quickAdd');
+  const quickMemo = $('quickMemo');
   const memoInput = $('memoInput');
   const focusMemoInput = $('focusMemoInput');
   const todayOnly = $('todayOnly');
@@ -541,12 +617,213 @@
 
   function persistDrafts(){
     localStorage.setItem(STORAGE.quickDraft, quickAdd.value || '');
+    localStorage.setItem(STORAGE.quickMemoDraft, quickMemo.value || '');
     localStorage.setItem(STORAGE.memoDrafts, JSON.stringify(memoDrafts));
   }
 
   function updateSaveState(ts){
     const raw = ts || Number(localStorage.getItem(STORAGE.lastSaved));
     $('saveState').textContent = raw ? `保存: ${hm(raw)}` : '保存: --';
+  }
+
+  function saveRecurringRules(){
+    localStorage.setItem(STORAGE.recurring, JSON.stringify(recurringRules));
+  }
+
+  function dayLabel(day){ return ['日','月','火','水','木','金','土'][day] || ''; }
+
+  function timeMinutes(value){
+    const m = /^(\d{1,2}):(\d{2})$/.exec(value || '');
+    if(!m) return 0;
+    return Math.min(23,Number(m[1])) * 60 + Math.min(59,Number(m[2]));
+  }
+
+  function createTask(title,note='',extra={}){
+    const task = {
+      id:`id${Date.now()}_${Math.random().toString(36).slice(2,7)}`,
+      title:String(title || '').trim(),
+      note:String(note || ''),
+      done:false,
+      created:Date.now(),
+      running:false,
+      logs:[],
+      ...extra
+    };
+    tasks.push(task);
+    return task;
+  }
+
+  function recurringAppliesToday(rule, now = new Date()){
+    if(rule.enabled === false) return false;
+    if(rule.repeat === 'daily') return true;
+    const days = Array.isArray(rule.days) ? rule.days.map(Number) : [];
+    return days.includes(now.getDay());
+  }
+
+  function runRecurringCheck(){
+    const now = new Date();
+    const today = ymd(now.getTime());
+    const currentMinutes = now.getHours()*60 + now.getMinutes();
+    let changedRules = false;
+    let added = false;
+
+    recurringRules.forEach(rule => {
+      if(!rule || !rule.id || !String(rule.title || '').trim()) return;
+      if(!recurringAppliesToday(rule,now)) return;
+      if(currentMinutes < timeMinutes(rule.time || '00:00')) return;
+
+      const alreadyExists = tasks.some(t => t.recurringId === rule.id && t.recurringDate === today);
+      if(rule.lastAddedDate === today || alreadyExists){
+        if(rule.lastAddedDate !== today){ rule.lastAddedDate = today; changedRules = true; }
+        return;
+      }
+
+      createTask(rule.title, rule.note || '', {recurringId:rule.id, recurringDate:today});
+      rule.lastAddedDate = today;
+      changedRules = true;
+      added = true;
+    });
+
+    if(changedRules) saveRecurringRules();
+    if(added){
+      persistTasks();
+      render();
+    }
+  }
+
+  function recurringScheduleText(rule){
+    const time = rule.time || '00:00';
+    if(rule.repeat === 'daily') return `毎日 ${time}以降`;
+    const days = (Array.isArray(rule.days) ? rule.days : []).map(Number);
+    const ordered = [1,2,3,4,5,6,0].filter(d => days.includes(d));
+    return `${ordered.map(dayLabel).join('・') || '曜日未設定'} ${time}以降`;
+  }
+
+  function updateRecurringWeekdayVisibility(){
+    const weekly = $('recurringRepeat').value === 'weekly';
+    $('recurringWeekdays').hidden = !weekly;
+  }
+
+  function resetRecurringForm(){
+    editingRecurringId = null;
+    $('recurringTitle').value = '';
+    $('recurringMemo').value = '';
+    $('recurringTime').value = '10:00';
+    $('recurringRepeat').value = 'daily';
+    document.querySelectorAll('input[name="recurringDay"]').forEach(cb => cb.checked = [1,2,3,4,5].includes(Number(cb.value)));
+    $('saveRecurringRule').textContent = '定期タスクを登録';
+    $('cancelRecurringEdit').hidden = true;
+    updateRecurringWeekdayVisibility();
+  }
+
+  function editRecurringRule(id){
+    const rule = recurringRules.find(r => r.id === id);
+    if(!rule) return;
+    editingRecurringId = id;
+    $('recurringTitle').value = rule.title || '';
+    $('recurringMemo').value = rule.note || '';
+    $('recurringTime').value = rule.time || '10:00';
+    $('recurringRepeat').value = rule.repeat === 'weekly' ? 'weekly' : 'daily';
+    const days = Array.isArray(rule.days) ? rule.days.map(Number) : [];
+    document.querySelectorAll('input[name="recurringDay"]').forEach(cb => cb.checked = days.includes(Number(cb.value)));
+    $('saveRecurringRule').textContent = '定期タスクを更新';
+    $('cancelRecurringEdit').hidden = false;
+    updateRecurringWeekdayVisibility();
+    $('recurringTitle').focus();
+  }
+
+  function deleteRecurringRule(id){
+    const rule = recurringRules.find(r => r.id === id);
+    if(!rule) return;
+    if(!confirm(`この定期タスク設定を削除しますか？\n\n${rule.title}\n\nすでに追加済みの通常タスクは残ります。`)) return;
+    recurringRules = recurringRules.filter(r => r.id !== id);
+    saveRecurringRules();
+    if(editingRecurringId === id) resetRecurringForm();
+    renderRecurringRules();
+  }
+
+  function saveRecurringForm(){
+    const title = $('recurringTitle').value.trim();
+    const note = $('recurringMemo').value;
+    const time = $('recurringTime').value || '00:00';
+    const repeat = $('recurringRepeat').value === 'weekly' ? 'weekly' : 'daily';
+    const days = [...document.querySelectorAll('input[name="recurringDay"]:checked')].map(cb => Number(cb.value));
+    if(!title) return alert('定期タスクの名前を入力してください');
+    if(repeat === 'weekly' && !days.length) return alert('追加する曜日を1つ以上選んでください');
+
+    if(editingRecurringId){
+      const rule = recurringRules.find(r => r.id === editingRecurringId);
+      if(rule){
+        rule.title = title;
+        rule.note = note;
+        rule.time = time;
+        rule.repeat = repeat;
+        rule.days = repeat === 'daily' ? [0,1,2,3,4,5,6] : days;
+      }
+    } else {
+      recurringRules.push({
+        id:`rr_${Date.now()}_${Math.random().toString(36).slice(2,7)}`,
+        title,note,time,repeat,
+        days:repeat === 'daily' ? [0,1,2,3,4,5,6] : days,
+        enabled:true,
+        lastAddedDate:null
+      });
+    }
+    saveRecurringRules();
+    resetRecurringForm();
+    renderRecurringRules();
+    runRecurringCheck();
+  }
+
+  function renderRecurringRules(){
+    const host = $('recurringList');
+    if(!host) return;
+    host.innerHTML = '';
+    if(!recurringRules.length){
+      const empty = document.createElement('div');
+      empty.className = 'settingHint';
+      empty.textContent = '定期タスクはまだ登録されていません。';
+      host.appendChild(empty);
+      return;
+    }
+
+    recurringRules.forEach(rule => {
+      const card = document.createElement('div');
+      card.className = 'recurringCard';
+      const main = document.createElement('div');
+      main.className = 'recurringCardMain';
+      const title = document.createElement('div');
+      title.className = 'recurringCardTitle';
+      title.textContent = rule.title;
+      const meta = document.createElement('div');
+      meta.className = 'recurringCardMeta';
+      meta.textContent = `${recurringScheduleText(rule)}${rule.note ? `\nメモ: ${rule.note}` : ''}`;
+      const enabled = document.createElement('label');
+      enabled.className = 'recurringEnabled';
+      const check = document.createElement('input');
+      check.type = 'checkbox';
+      check.checked = rule.enabled !== false;
+      check.onchange = () => {
+        rule.enabled = check.checked;
+        saveRecurringRules();
+        if(check.checked) runRecurringCheck();
+      };
+      enabled.append(check,document.createTextNode('有効'));
+      main.append(title,meta,enabled);
+
+      const actions = document.createElement('div');
+      actions.className = 'recurringCardActions';
+      const edit = document.createElement('button');
+      edit.textContent = '編集';
+      edit.onclick = () => editRecurringRule(rule.id);
+      const del = document.createElement('button');
+      del.className = 'danger';
+      del.textContent = '削除';
+      del.onclick = () => deleteRecurringRule(rule.id);
+      actions.append(edit,del);
+      card.append(main,actions);
+      host.appendChild(card);
+    });
   }
 
   function getTask(id){ return tasks.find(t => t.id === id); }
@@ -558,9 +835,11 @@
     return getTask(selectedId)?.note || '';
   }
 
-  function setMemoDraft(value){
+  function setMemoDraft(value, sourceInput=null){
     if(!selectedId) return;
     memoDrafts[selectedId] = value;
+    if(sourceInput !== memoInput && document.activeElement !== memoInput) memoInput.value = value;
+    if(sourceInput !== focusMemoInput && document.activeElement !== focusMemoInput) focusMemoInput.value = value;
     persistDrafts();
   }
 
@@ -627,12 +906,16 @@
   function addTask(){
     const title = quickAdd.value.trim();
     if(!title) return;
-    const task = {id:`id${Date.now()}_${Math.random().toString(36).slice(2,7)}`,title,note:'',done:false,created:Date.now(),running:false,logs:[]};
-    tasks.push(task);
+    const note = quickMemo.value;
+    const task = createTask(title,note);
     quickAdd.value = '';
+    quickMemo.value = '';
     localStorage.setItem(STORAGE.quickDraft, '');
+    localStorage.setItem(STORAGE.quickMemoDraft, '');
     selectedId = task.id;
-    memoInput.value = '';
+    memoDrafts[task.id] = note;
+    memoInput.value = note;
+    persistDrafts();
     persistTasks();
     render();
   }
@@ -688,7 +971,7 @@
     const pos = start + text.length;
     input.focus();
     try { input.setSelectionRange(pos,pos); } catch(e) {}
-    if(input === memoInput || input === focusMemoInput) setMemoDraft(input.value);
+    if(input === memoInput || input === focusMemoInput) setMemoDraft(input.value,input);
   }
 
   function visibleTasks(){
@@ -808,9 +1091,15 @@
   }
 
   function setFocus(on){
+    if(!on && selectedId && runningTask()){
+      setMemoDraft(focusMemoInput.value,focusMemoInput);
+      memoInput.value = getSelectedDraft();
+    }
     app.classList.toggle('focus', on);
     localStorage.setItem(STORAGE.focus, on ? '1':'0');
+    if(on && selectedId) focusMemoInput.value = getSelectedDraft();
     updateFocus();
+    if(!on) render();
   }
 
   function applyFont(size){
@@ -992,6 +1281,7 @@
 
   // Init settings + drafts
   quickAdd.value = localStorage.getItem(STORAGE.quickDraft) || '';
+  quickMemo.value = localStorage.getItem(STORAGE.quickMemoDraft) || '';
   todayOnly.checked = localStorage.getItem(STORAGE.today) === '1';
   hideDone.checked = localStorage.getItem(STORAGE.hideDone) !== '0';
   orderSelect.value = localStorage.getItem(STORAGE.order) || 'bottom';
@@ -1010,7 +1300,8 @@
   // Regular UI events
   $('addBtn').onclick = addTask;
   quickAdd.addEventListener('input',() => localStorage.setItem(STORAGE.quickDraft,quickAdd.value));
-  memoInput.addEventListener('input',() => setMemoDraft(memoInput.value));
+  quickMemo.addEventListener('input',() => localStorage.setItem(STORAGE.quickMemoDraft,quickMemo.value));
+  memoInput.addEventListener('input',() => setMemoDraft(memoInput.value,memoInput));
   $('memoSaveBtn').onclick = () => saveMemoFrom(memoInput);
   $('nowBtn').onclick = () => insertAtCursor(memoInput,hm());
   $('tildeBtn').onclick = () => insertAtCursor(memoInput,'～');
@@ -1024,7 +1315,7 @@
   $('focusBtn').onclick = () => setFocus(true);
   $('focusBackBtn').onclick = () => setFocus(false);
   $('focusStopBtn').onclick = () => { const r=runningTask(); if(r) toggleRun(r.id); };
-  focusMemoInput.addEventListener('input',() => setMemoDraft(focusMemoInput.value));
+  focusMemoInput.addEventListener('input',() => setMemoDraft(focusMemoInput.value,focusMemoInput));
   $('focusMemoSaveBtn').onclick = () => saveMemoFrom(focusMemoInput);
   $('focusNowBtn').onclick = () => insertAtCursor(focusMemoInput,hm());
   $('focusTildeBtn').onclick = () => insertAtCursor(focusMemoInput,'～');
@@ -1046,7 +1337,14 @@
 
   // Appearance settings
   const settingsDialog = $('settingsDialog');
-  $('openSettings').onclick = () => settingsDialog.showModal();
+  function activateSettingsTab(name){
+    document.querySelectorAll('.settingsTab').forEach(btn => btn.classList.toggle('active',btn.dataset.settingsTab===name));
+    $('settingsAppearancePanel').classList.toggle('active',name==='appearance');
+    $('settingsRecurringPanel').classList.toggle('active',name==='recurring');
+    if(name==='recurring') renderRecurringRules();
+  }
+  document.querySelectorAll('.settingsTab').forEach(btn => btn.onclick = () => activateSettingsTab(btn.dataset.settingsTab));
+  $('openSettings').onclick = () => { activateSettingsTab('appearance'); settingsDialog.showModal(); };
   $('closeSettings').onclick = () => settingsDialog.close();
   $('accentColor').oninput = () => $('accentHex').value = $('accentColor').value;
   $('bgColor').oninput = () => $('bgHex').value = $('bgColor').value;
@@ -1091,6 +1389,12 @@
     applyBgImageBlob(null);
   };
   $('resetAllData').onclick = resetAllData;
+  $('recurringRepeat').onchange = updateRecurringWeekdayVisibility;
+  $('saveRecurringRule').onclick = saveRecurringForm;
+  $('cancelRecurringEdit').onclick = resetRecurringForm;
+  resetRecurringForm();
+  renderRecurringRules();
+
 
   // Ctrl/Cmd + Enter task add. If task field is empty, focus it instead.
   document.addEventListener('keydown',(e) => {
@@ -1107,10 +1411,16 @@
   });
 
   // Preserve unsaved drafts when the PWA goes to background.
-  document.addEventListener('visibilitychange',() => { if(document.hidden) persistDrafts(); });
+  document.addEventListener('visibilitychange',() => {
+    if(document.hidden) persistDrafts();
+    else runRecurringCheck();
+  });
   window.addEventListener('pagehide',persistDrafts);
+  window.addEventListener('pageshow',runRecurringCheck);
+  setInterval(() => { if(!document.hidden) runRecurringCheck(); },60000);
 
   applyBgOverlay(localStorage.getItem(STORAGE.bgOverlay) || '0');
+  runRecurringCheck();
   render();
   if(localStorage.getItem(STORAGE.focus) === '1') setFocus(true);
 })();
