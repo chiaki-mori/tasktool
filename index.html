@@ -276,10 +276,6 @@
       <button class="primary" id="addBtn">追加</button>
     </div>
     <div class="row">
-      <textarea class="field" id="quickMemo" rows="1" placeholder="新規タスクのメモ（任意・タスク追加時に一緒に保存）"></textarea>
-    </div>
-
-    <div class="row">
       <textarea class="field" id="memoInput" rows="2" placeholder="選択中タスクのメモ"></textarea>
       <div class="memoActions">
         <button id="nowBtn">＋いま</button>
@@ -596,10 +592,12 @@
   let selectedId = localStorage.getItem(STORAGE.selected) || null;
   let recurringRules = safeJson(STORAGE.recurring, []);
   let editingRecurringId = null;
+  // One normal memo box serves both new-task memo and selected-task memo.
+  let newTaskMemoDraft = localStorage.getItem(STORAGE.quickMemoDraft) || '';
+  let memoMode = 'selected'; // 'new' | 'selected'
 
   const app = $('app');
   const quickAdd = $('quickAdd');
-  const quickMemo = $('quickMemo');
   const memoInput = $('memoInput');
   const focusMemoInput = $('focusMemoInput');
   const todayOnly = $('todayOnly');
@@ -617,7 +615,7 @@
 
   function persistDrafts(){
     localStorage.setItem(STORAGE.quickDraft, quickAdd.value || '');
-    localStorage.setItem(STORAGE.quickMemoDraft, quickMemo.value || '');
+    localStorage.setItem(STORAGE.quickMemoDraft, newTaskMemoDraft || '');
     localStorage.setItem(STORAGE.memoDrafts, JSON.stringify(memoDrafts));
   }
 
@@ -838,14 +836,43 @@
   function setMemoDraft(value, sourceInput=null){
     if(!selectedId) return;
     memoDrafts[selectedId] = value;
-    if(sourceInput !== memoInput && document.activeElement !== memoInput) memoInput.value = value;
+    if(sourceInput !== memoInput && memoMode === 'selected' && document.activeElement !== memoInput) memoInput.value = value;
     if(sourceInput !== focusMemoInput && document.activeElement !== focusMemoInput) focusMemoInput.value = value;
     persistDrafts();
+  }
+
+  function updateNormalMemoBox(force=false){
+    if(document.activeElement === memoInput && !force) return;
+    if(memoMode === 'new') {
+      memoInput.placeholder = '新規タスクのメモ（タスク追加時に一緒に保存）';
+      memoInput.value = newTaskMemoDraft;
+      memoInput.setAttribute('aria-label','新規タスクのメモ');
+      return;
+    }
+    const task = selectedId ? getTask(selectedId) : null;
+    memoInput.placeholder = task ? `「${task.title}」のメモ` : '選択中タスクのメモ';
+    memoInput.value = task ? getSelectedDraft() : '';
+    memoInput.setAttribute('aria-label',task ? `${task.title} のメモ` : '選択中タスクのメモ');
+  }
+
+  function switchMemoMode(mode, force=true){
+    memoMode = mode;
+    updateNormalMemoBox(force);
+  }
+
+  function syncNormalMemoDraft(){
+    if(memoMode === 'new') {
+      newTaskMemoDraft = memoInput.value;
+      localStorage.setItem(STORAGE.quickMemoDraft,newTaskMemoDraft);
+    } else {
+      setMemoDraft(memoInput.value,memoInput);
+    }
   }
 
   function selectTask(id){
     selectedId = id;
     localStorage.setItem(STORAGE.selected, selectedId || '');
+    memoMode = 'selected';
     const value = getSelectedDraft();
     memoInput.value = value;
     if(app.classList.contains('focus')) focusMemoInput.value = value;
@@ -874,6 +901,7 @@
       task.logs = Array.isArray(task.logs) ? task.logs : [];
       task.logs.push({start:Date.now(), end:null});
       selectedId = id;
+      memoMode = 'selected';
       memoInput.value = getSelectedDraft();
     }
     persistTasks();
@@ -899,20 +927,23 @@
     if(selectedId === id) selectedId = null;
     persistDrafts();
     persistTasks();
-    memoInput.value = '';
+    memoMode = selectedId ? 'selected' : 'new';
+    updateNormalMemoBox(true);
     render();
   }
 
   function addTask(){
     const title = quickAdd.value.trim();
     if(!title) return;
-    const note = quickMemo.value;
+    // The single normal memo box switches to new-task mode when the task-name field is used.
+    const note = newTaskMemoDraft;
     const task = createTask(title,note);
     quickAdd.value = '';
-    quickMemo.value = '';
+    newTaskMemoDraft = '';
     localStorage.setItem(STORAGE.quickDraft, '');
     localStorage.setItem(STORAGE.quickMemoDraft, '');
     selectedId = task.id;
+    memoMode = 'selected';
     memoDrafts[task.id] = note;
     memoInput.value = note;
     persistDrafts();
@@ -959,9 +990,19 @@
     memoDrafts[selectedId] = input.value;
     persistDrafts();
     persistTasks();
-    memoInput.value = input.value;
+    if(memoMode === 'selected') memoInput.value = input.value;
     focusMemoInput.value = input.value;
     render();
+  }
+
+  function saveNormalMemo(){
+    if(memoMode === 'new') {
+      newTaskMemoDraft = memoInput.value;
+      localStorage.setItem(STORAGE.quickMemoDraft,newTaskMemoDraft);
+      persistDrafts();
+      return;
+    }
+    saveMemoFrom(memoInput);
   }
 
   function insertAtCursor(input, text){
@@ -971,7 +1012,8 @@
     const pos = start + text.length;
     input.focus();
     try { input.setSelectionRange(pos,pos); } catch(e) {}
-    if(input === memoInput || input === focusMemoInput) setMemoDraft(input.value,input);
+    if(input === memoInput) syncNormalMemoDraft();
+    if(input === focusMemoInput) setMemoDraft(input.value,input);
   }
 
   function visibleTasks(){
@@ -1067,9 +1109,8 @@
       $('nowMeta').textContent = 'タスクを選んで「開始」を押してください。';
     }
 
-    if(selectedId){
-      const value = getSelectedDraft();
-      if(document.activeElement !== memoInput) memoInput.value = value;
+    if(memoMode === 'selected') {
+      updateNormalMemoBox(false);
     }
 
     updateFocus();
@@ -1093,6 +1134,7 @@
   function setFocus(on){
     if(!on && selectedId && runningTask()){
       setMemoDraft(focusMemoInput.value,focusMemoInput);
+      memoMode = 'selected';
       memoInput.value = getSelectedDraft();
     }
     app.classList.toggle('focus', on);
@@ -1220,7 +1262,8 @@
     tasks = [];
     memoDrafts = {};
     selectedId = null;
-    memoInput.value = '';
+    memoMode = 'new';
+    memoInput.value = newTaskMemoDraft;
     focusMemoInput.value = '';
     localStorage.setItem(STORAGE.tasks,'[]');
     localStorage.setItem(STORAGE.selected,'');
@@ -1281,7 +1324,8 @@
 
   // Init settings + drafts
   quickAdd.value = localStorage.getItem(STORAGE.quickDraft) || '';
-  quickMemo.value = localStorage.getItem(STORAGE.quickMemoDraft) || '';
+  newTaskMemoDraft = localStorage.getItem(STORAGE.quickMemoDraft) || '';
+  memoMode = quickAdd.value.trim() ? 'new' : (selectedId ? 'selected' : 'new');
   todayOnly.checked = localStorage.getItem(STORAGE.today) === '1';
   hideDone.checked = localStorage.getItem(STORAGE.hideDone) !== '0';
   orderSelect.value = localStorage.getItem(STORAGE.order) || 'bottom';
@@ -1291,6 +1335,7 @@
   applyTextFromBase(localStorage.getItem(STORAGE.textBase) || '#eaf2fb', localStorage.getItem(STORAGE.textLight) || 95);
   restoreBgImage();
   updateSaveState();
+  updateNormalMemoBox(true);
 
   // Clock
   function tick(){ $('clock').textContent = new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'}); }
@@ -1299,10 +1344,13 @@
 
   // Regular UI events
   $('addBtn').onclick = addTask;
-  quickAdd.addEventListener('input',() => localStorage.setItem(STORAGE.quickDraft,quickAdd.value));
-  quickMemo.addEventListener('input',() => localStorage.setItem(STORAGE.quickMemoDraft,quickMemo.value));
-  memoInput.addEventListener('input',() => setMemoDraft(memoInput.value,memoInput));
-  $('memoSaveBtn').onclick = () => saveMemoFrom(memoInput);
+  quickAdd.addEventListener('focus',() => switchMemoMode('new',true));
+  quickAdd.addEventListener('input',() => {
+    localStorage.setItem(STORAGE.quickDraft,quickAdd.value);
+    if(memoMode !== 'new') switchMemoMode('new',true);
+  });
+  memoInput.addEventListener('input',syncNormalMemoDraft);
+  $('memoSaveBtn').onclick = saveNormalMemo;
   $('nowBtn').onclick = () => insertAtCursor(memoInput,hm());
   $('tildeBtn').onclick = () => insertAtCursor(memoInput,'～');
 
